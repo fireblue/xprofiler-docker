@@ -8,9 +8,9 @@ x-mysql-environment: &mysql-environment
   XPROFILER_CONSOLE_MYSQL_PASSWORD: "123456"
   XPROFILER_CONSOLE_MYSQL_DATABASE: "xprofiler_console"   # xprofiler_console 数据库名称
   XPROFILER_LOGS_MYSQL_HOST: "xtransit-mysql"                 # xprofiler-logs 数据库配置
-  XPROFILER_LOGS_MYSQL_PORT: 3306                         
-  XPROFILER_LOGS_MYSQL_USER: "root"                       
-  XPROFILER_LOGS_MYSQL_PASSWORD: "123456"                 
+  XPROFILER_LOGS_MYSQL_PORT: 3306
+  XPROFILER_LOGS_MYSQL_USER: "root"
+  XPROFILER_LOGS_MYSQL_PASSWORD: "123456"
   XPROFILER_LOGS_MYSQL_DATABASE: "xprofiler_logs"         # xprofiler_logs 数据库名称
 
 # redis 公共配置
@@ -28,22 +28,23 @@ x-mailer-environment: &mailer-environment
   MAILER_AUTH_USER: ""
   MAILER_AUTH_PASS: ""
 
-services: 
-  xtransit-mysql: 
+services:
+  xtransit-mysql:
     container_name: xtransit-mysql
     image: mysql:5.7.22
     restart: always
-    # ports: 
+    # ports:
     #   - "3306:3306"
     volumes:  # 执行sql初始化数据库，数据库没初始化成功时会导致下面几个依赖该数据库的服务启动失败，耐心等待一会即可，容器会自动重启
       - "./db/xprofiler_console/init.sql:/docker-entrypoint-initdb.d/1_init.sql"
       - "./db/xprofiler_logs/init.sql:/docker-entrypoint-initdb.d/2_init.sql"
       - "./db/xprofiler_logs/date.sql:/docker-entrypoint-initdb.d/3_date.sql"
       - "./mysql:/var/lib/mysql"   # 挂载数据目录
-    environment: 
+    environment:
       MYSQL_ROOT_PASSWORD: "123456"
       MYSQL_ROOT_HOST: "%"
-  
+      TZ: Asia/Shanghai
+
   xtransit-redis:
     container_name: xtransit-redis
     restart: always
@@ -53,52 +54,55 @@ services:
 
   xprofiler-console:
     container_name: xprofiler-console
-    image: dq198/xprofiler-console:v1.0.1
+    image: fireblue/xprofiler-console:1.0.3
     hostname: xprofiler-console
     restart: always
     # cpus: 1  # 1核 cpu
     # mem_limit: 200m  # 200MB 内存
     # command: "./node_modules/.bin/egg-scripts start --workers=4 --port=8443"
-    ports: 
+    ports:
       - 8443:8443
     depends_on:
       - xtransit-mysql
       - xtransit-redis
-    environment: 
+    environment:
       <<: *mysql-environment
       <<: *redis-environment
       XPROFILER_CONSOLE_URL: "http://127.0.0.1:8443"   # xprofiler-console 服务地址，这里最好配置服务器地址，要不然在界面操作 文件-》转储 时会失败
       XTRANSIT_MANAGER_URL: http://xtransit-manager:8543       # xtransit-manager 服务地址，也可以填服务器ip
+      TZ: Asia/Shanghai
 
   xtransit-manager:
     container_name: xtransit-manager
-    image: dq198/xtransit-manager:v1.0.1
+    image: fireblue/xtransit-manager:1.0.0
     hostname: xtransit-manager
     restart: always
     # cpus: 1
     # mem_limit: 200m
-    ports: 
+    ports:
       - 8543:8543
     depends_on:
       - xtransit-mysql
       - xtransit-redis
-    environment: 
+    environment:
       <<: *mysql-environment
       <<: *redis-environment
       <<: *mailer-environment
       XPROFILER_CONSOLE_URL: "http://xprofiler-console:8443"   # xtransit-manager 服务地址
+      TZ: Asia/Shanghai
 
   xtransit-server:
     container_name: xtransit-server
-    image: dq198/xtransit-server:v1.0.1
+    image: fireblue/xtransit-server:1.0.3
     restart: always
     hostname: xtransit-server
     # cpus: 1
     # mem_limit: 200m
-    ports: 
+    ports:
       - 9090:9090
     depends_on:
       - xtransit-mysql
       - xtransit-redis
-    environment: 
+    environment:
       XTRANSIT_MANAGER_URL: http://xtransit-manager:8543      # xtransit-manager 服务地址
+      TZ: Asia/Shanghai
